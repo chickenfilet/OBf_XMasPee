@@ -62,7 +62,7 @@
 
       // realtime leaderboard subscription
       useEffect(()=>{
-        const unsub=scoresRef.orderBy("score","desc").limit(10).onSnapshot(snap=>{
+        const unsub=scoresRef.orderBy("scores_obf","desc").limit(10).onSnapshot(snap=>{
           const rows=[]; snap.forEach(doc=>rows.push(doc.data()));
           setBoard(rows);
         });
