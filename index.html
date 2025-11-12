@@ -1,4 +1,5 @@
-<!doctype html>
+If you want separate leaderboards:
+Easiest: change the collection path per site<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -34,7 +35,7 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db=firebase.firestore();
-    const scoresRef=db.collection("scores_obf");
+    const scoresRef=db.collection("scores_siteB");
 
     const Card=({children,className=""})=> <div className={`rounded-2xl shadow-lg bg-white p-4 ${className}`}>{children}</div>;
     const Button=({children,onClick,disabled,className=""})=> (
@@ -62,7 +63,7 @@
 
       // realtime leaderboard subscription
       useEffect(()=>{
-        const unsub=scoresRef.orderBy("scores_obf","desc").limit(10).onSnapshot(snap=>{
+        const unsub=scoresRef.orderBy("score","desc").limit(10).onSnapshot(snap=>{
           const rows=[]; snap.forEach(doc=>rows.push(doc.data()));
           setBoard(rows);
         });
