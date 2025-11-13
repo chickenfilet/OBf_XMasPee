@@ -70,7 +70,7 @@
       const[hit,setHit]=useState(false);
       const[pathRef]=[useRef(null)];
       const[board,setBoard]=useState([]);
-      const[boardOpen,setBoardOpen]=useState(true); // NEW: expand/collapse leaderboard
+      const[boardOpen,setBoardOpen]=useState(true); // leaderboard expand/collapse
 
       // realtime leaderboard subscription
       useEffect(()=>{
@@ -93,20 +93,22 @@
         }, { merge:true });
       }
 
-      // generous buffs (easy mode)
+      // ===== BUFFS (NERFED FOR HIGHER DIFFICULTY) =====
       const attrs=useMemo(()=>{
         const p=new Set(picks);
-        const aim=1+(p.has("lemonade")?0.5:0);
-        const strength=1+(p.has("breast milk")?0.5:0);
-        const push=p.has("wine")?12:0;
+        const aim=1+(p.has("lemonade")?0.3:0);       // was 0.5
+        const strength=1+(p.has("breast milk")?0.3:0); // was 0.5
+        const push=p.has("wine")?8:0;                // was 12
         return {aim,strength,push};
       },[picks]);
 
-      // bar animation
+      // ===== BAR ANIMATION (FASTER FOR MORE DIFFICULTY) =====
       const lastTRef=useRef(null);
       useEffect(()=>{
         if(!running||locked) return;
-        let raf; const speed=3.8;
+        let raf;
+        const speed=5.2; // was 3.8
+
         const loop=t=>{
           if(!lastTRef.current) lastTRef.current=t;
           const dt=(t-lastTRef.current)/1000; lastTRef.current=t;
@@ -123,7 +125,8 @@
       },[running,locked,barDir]);
 
       const beginRound=()=>{
-        setWind(rand(-0.7,0.3));
+        // Stronger, more chaotic wind for higher difficulty
+        setWind(rand(-1.2,0.8));        // was rand(-0.7,0.3)
         setDistanceTarget(rand(120,140));
         setBarPos(Math.random());
         setBarDir(Math.random()<0.5?-1:1);
@@ -134,16 +137,34 @@
 
       const lockStrength=()=>{
         if(!running||locked) return;
-        const jitterStd=0.01/attrs.aim; const jitter=rand(-jitterStd,jitterStd);
-        const val=clamp(barPos+jitter,0,1); setSelectedVal(val);
+
+        // More jitter -> harder to hit exact value
+        const jitterStd=0.03/attrs.aim;    // was 0.01/attrs.aim
+        const jitter=rand(-jitterStd,jitterStd);
+
+        const val=clamp(barPos+jitter,0,1);
+        setSelectedVal(val);
+
         const v=val*26*attrs.strength;
         const rangeNoWind=(v*v*Math.sin(2*ANGLE_RAD))/G;
-        const eff=rangeNoWind+attrs.push; setDistResult(eff);
-        const target=distanceTarget+wind; const err=Math.abs(eff-target);
-        const s=Math.max(0,Math.round(100-err)); setScore(s);
-        const didHit=err<5; setHit(didHit);
+        const eff=rangeNoWind+attrs.push;
+        setDistResult(eff);
+
+        const target=distanceTarget+wind;
+        const err=Math.abs(eff-target);
+
+        const s=Math.max(0,Math.round(100-err));
+        setScore(s);
+
+        // Smaller hit window => harder ⭐
+        const didHit=err<3; // was 5
+        setHit(didHit);
+
         const DRAG = 0.03; 
-        setLocked(true); setRunning(false); setShowJet(true);
+        setLocked(true);
+        setRunning(false);
+        setShowJet(true);
+
         pushBoardRemote({ name, score:s, picks:[...picks], hit:didHit, ts:Date.now() });
       };
 
@@ -217,202 +238,3 @@
                     </div>
                     <Button onClick={beginRound} disabled={!canStart}>Start</Button>
                   </Card>
-                )}
-
-                {stage==="play" && (
-                  <Card className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm">
-                        Pilot: <span className="font-semibold">{name}</span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Wind: {wind.toFixed(1)}
-                      </div>
-                    </div>
-
-                    <div className="relative h-40 overflow-hidden rounded-2xl bg-gradient-to-b from-white to-indigo-50">
-                      <svg viewBox="0 0 100 40" className="absolute inset-0">
-                        <line x1="2" y1="35" x2="98" y2="35" stroke="#c7cbe9" strokeWidth=".6"/>
-                        {/* Player */}
-                        <g stroke="#111827" strokeWidth="1.6" strokeLinecap="round">
-                          <circle cx="10" cy="24" r="3" fill="none"/>
-                          <line x1="10" y1="27" x2="10" y2="32"/>
-                          <line x1="10" y1="29" x2="6" y2="35"/>
-                          <line x1="10" y1="29" x2="14" y2="35"/>
-                          <line x1="10" y1="26" x2="15" y2="28"/>
-                        </g>
-                        <text x="10" y="18" textAnchor="middle" fontSize="3" fill="#111827">
-                          {name||"You"}
-                        </text>
-                        {/* PoOline + shield (facing player) */}
-                        <g transform="translate(85,0)" stroke="#111827" strokeWidth="1.6" strokeLinecap="round">
-                          <circle cx="0" cy="24" r="3" fill="none"/>
-                          <line x1="0" y1="27" x2="0" y2="32"/>
-                          <line x1="0" y1="29" x2="-4" y2="35"/>
-                          <line x1="0" y1="29" x2="4" y2="35"/>
-                          <line x1="0" y1="26" x2="-6" y2="28"/>
-                          <polygon points="-14,24 -7,22 -7,30 -14,32" fill="#93c5fd" stroke="#1e3a8a"/>
-                        </g>
-                        <text x="85" y="18" textAnchor="middle" fontSize="3" fill="#111827">
-                          PoOline
-                        </text>
-
-                        {/* Trajectory */}
-                        {showJet && distResult!=null && (
-                          <g>
-                            <path d={buildPathD()} fill="none" stroke="#facc15" strokeWidth="1.6"/>
-                            <circle r="1.8" fill="#facc15">
-                              <animateMotion dur="1.4s" fill="freeze" path={buildPathD()} begin="0s"/>
-                              <set attributeName="r" to="3" begin="1.4s" dur="0.2s" fill="freeze"/>
-                              <set attributeName="fill" to="#fbbf24" begin="1.4s" dur="0.2s" fill="freeze"/>
-                            </circle>
-                            {hit && (
-                              <circle cx="75" cy="30" r="3" fill="#fde047">
-                                <animate attributeName="r" values="3;8;0" dur="0.4s" begin="1.4s"/>
-                                <animate attributeName="opacity" values="1;0" dur="0.4s" begin="1.4s"/>
-                              </circle>
-                            )}
-                          </g>
-                        )}
-                      </svg>
-                    </div>
-
-                    <div className="select-none">
-                      <div className="mb-1 flex items-end justify-between">
-                        <div className="text-sm font-semibold">Jet Strength</div>
-                        <div className="text-xs text-gray-500">Tap anywhere to lock</div>
-                      </div>
-                      <div
-                        className={`relative h-12 w-full touch-manipulation rounded-2xl border-2 ${
-                          locked ? "border-green-500" : "border-gray-300"
-                        }`}
-                        onClick={()=>lockStrength()}
-                        onTouchStart={(e)=>{ e.preventDefault(); lockStrength(); }}
-                      >
-                        <div className="absolute inset-2 rounded-xl bg-gray-100"></div>
-                        <div
-                          className="absolute top-1/2 h-8 w-3 -translate-y-1/2 rounded bg-indigo-600 shadow"
-                          style={{ left: `calc(${barPos*100}% - 6px)` }}
-                        ></div>
-                      </div>
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs text-gray-500">
-                        <div>🎯 Aim x{attrs.aim.toFixed(2)}</div>
-                        <div>💪 Strength x{attrs.strength.toFixed(2)}</div>
-                        <div>🛡️ Push +{attrs.push.toFixed(0)}m</div>
-                      </div>
-                    </div>
-
-                    <Button onClick={()=>lockStrength()} disabled={locked}>Tap to lock</Button>
-                  </Card>
-                )}
-
-                {stage!=="menu" && locked && (
-                  <Card className="mt-4 space-y-3">
-                    <h3 className="text-lg font-bold">Result</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="rounded-xl bg-gray-50 p-3">
-                        <div className="text-gray-500">Locked value</div>
-                        <div className="font-mono text-lg">
-                          {(selectedVal??0).toFixed(3)}
-                        </div>
-                      </div>
-                      <div className="rounded-xl bg-gray-50 p-3">
-                        <div className="text-gray-500">Distance achieved</div>
-                        <div className="font-mono text-lg">
-                          {(distResult??0).toFixed(1)}
-                        </div>
-                      </div>
-                      <div className="rounded-xl bg-gray-50 p-3">
-                        <div className="text-gray-500">Target distance</div>
-                        <div className="font-mono text-lg">
-                          {(distanceTarget+wind).toFixed(1)}
-                        </div>
-                      </div>
-                      <div className="rounded-xl bg-gray-50 p-3">
-                        <div className="text-gray-500">Score</div>
-                        <div className="font-mono text-2xl">
-                          {score}
-                          {hit && <span className="text-yellow-500 ml-1">⭐</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={beginRound}>Play again</Button>
-                      <Button onClick={resetAll} className="!bg-gray-800">
-                        Change name/drinks
-                      </Button>
-                    </div>
-                  </Card>
-                )}
-
-                <footer className="py-8 text-center text-xs text-gray-500">
-                  Tap anywhere on the strength bar to lock it. The yellow jet appears
-                  after you tap and can hit PoOline’s shield with perfect timing!
-                </footer>
-              </div>
-
-              {/* LEADERBOARD COLUMN */}
-              <div className="order-1 md:order-2 md:w-72 w-full">
-                <Card className="mb-2">
-                  <button
-                    onClick={()=>setBoardOpen(o=>!o)}
-                    className="flex w-full items-center justify-between text-left"
-                  >
-                    <div>
-                      <h2 className="text-lg font-bold">Top Pilots</h2>
-                      <p className="text-xs text-gray-500">
-                        {boardOpen ? "Hide leaderboard" : "Show leaderboard"}
-                      </p>
-                    </div>
-                    <span className="ml-2 text-xl">
-                      {boardOpen ? "▴" : "▾"}
-                    </span>
-                  </button>
-
-                  {boardOpen && (
-                    <div className="mt-3 max-h-72 overflow-y-auto pr-1">
-                      {board.length===0 ? (
-                        <p className="text-sm text-gray-600">
-                          No scores yet — be the first!
-                        </p>
-                      ) : (
-                        <ol className="space-y-1">
-                          {board.map((r,i)=> (
-                            <li
-                              key={(r.name||"") + i}
-                              className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="w-6 text-right font-mono">
-                                  {i+1}.
-                                </span>
-                                <span className="font-semibold">{r.name}</span>
-                                <span className="text-xs text-gray-500">
-                                  [{(r.picks||[]).join(" + ")}]
-                                </span>
-                              </div>
-                              <span className="font-mono">
-                                {r.score}
-                                {r.hit && (
-                                  <span className="text-yellow-500 ml-1">⭐</span>
-                                )}
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
-                      )}
-                    </div>
-                  )}
-                </Card>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const root=ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<Game/>);
-  </script>
-</body>
-</html>
