@@ -70,7 +70,7 @@
       const[hit,setHit]=useState(false);
       const[pathRef]=[useRef(null)];
       const[board,setBoard]=useState([]);
-      const[boardOpen,setBoardOpen]=useState(true); // leaderboard expand/collapse
+      const[boardOpen,setBoardOpen]=useState(true); // NEW: expand/collapse leaderboard
 
       // realtime leaderboard subscription
       useEffect(()=>{
@@ -93,22 +93,20 @@
         }, { merge:true });
       }
 
-      // ===== BUFFS (NERFED FOR HIGHER DIFFICULTY) =====
+      // generous buffs (easy mode)
       const attrs=useMemo(()=>{
         const p=new Set(picks);
-        const aim=1+(p.has("lemonade")?0.3:0);       // was 0.5
-        const strength=1+(p.has("breast milk")?0.3:0); // was 0.5
-        const push=p.has("wine")?8:0;                // was 12
+        const aim=1+(p.has("lemonade")?0.5:0);
+        const strength=1+(p.has("breast milk")?0.5:0);
+        const push=p.has("wine")?12:0;
         return {aim,strength,push};
       },[picks]);
 
-      // ===== BAR ANIMATION (FASTER FOR MORE DIFFICULTY) =====
+      // bar animation
       const lastTRef=useRef(null);
       useEffect(()=>{
         if(!running||locked) return;
-        let raf;
-        const speed=5.2; // was 3.8
-
+        let raf; const speed=3.8;
         const loop=t=>{
           if(!lastTRef.current) lastTRef.current=t;
           const dt=(t-lastTRef.current)/1000; lastTRef.current=t;
@@ -125,8 +123,7 @@
       },[running,locked,barDir]);
 
       const beginRound=()=>{
-        // Stronger, more chaotic wind for higher difficulty
-        setWind(rand(-1.2,0.8));        // was rand(-0.7,0.3)
+        setWind(rand(-0.7,0.3));
         setDistanceTarget(rand(120,140));
         setBarPos(Math.random());
         setBarDir(Math.random()<0.5?-1:1);
@@ -137,34 +134,16 @@
 
       const lockStrength=()=>{
         if(!running||locked) return;
-
-        // More jitter -> harder to hit exact value
-        const jitterStd=0.03/attrs.aim;    // was 0.01/attrs.aim
-        const jitter=rand(-jitterStd,jitterStd);
-
-        const val=clamp(barPos+jitter,0,1);
-        setSelectedVal(val);
-
+        const jitterStd=0.01/attrs.aim; const jitter=rand(-jitterStd,jitterStd);
+        const val=clamp(barPos+jitter,0,1); setSelectedVal(val);
         const v=val*26*attrs.strength;
         const rangeNoWind=(v*v*Math.sin(2*ANGLE_RAD))/G;
-        const eff=rangeNoWind+attrs.push;
-        setDistResult(eff);
-
-        const target=distanceTarget+wind;
-        const err=Math.abs(eff-target);
-
-        const s=Math.max(0,Math.round(100-err));
-        setScore(s);
-
-        // Smaller hit window => harder ⭐
-        const didHit=err<3; // was 5
-        setHit(didHit);
-
+        const eff=rangeNoWind+attrs.push; setDistResult(eff);
+        const target=distanceTarget+wind; const err=Math.abs(eff-target);
+        const s=Math.max(0,Math.round(100-err)); setScore(s);
+        const didHit=err<5; setHit(didHit);
         const DRAG = 0.03; 
-        setLocked(true);
-        setRunning(false);
-        setShowJet(true);
-
+        setLocked(true); setRunning(false); setShowJet(true);
         pushBoardRemote({ name, score:s, picks:[...picks], hit:didHit, ts:Date.now() });
       };
 
