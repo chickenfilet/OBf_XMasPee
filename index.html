@@ -107,7 +107,7 @@ Easiest: change the collection path per site<!doctype html>
       },[running,locked,barDir]);
 
       const beginRound=()=>{
-        setWind(rand(-0.5,0.4));
+        setWind(rand(-0.7,0.3));
         setDistanceTarget(rand(120,130));
         setBarPos(Math.random());
         setBarDir(Math.random()<0.5?-1:1);
@@ -125,7 +125,7 @@ Easiest: change the collection path per site<!doctype html>
         const eff=rangeNoWind+attrs.push; setDistResult(eff);
         const target=distanceTarget+wind; const err=Math.abs(eff-target);
         const s=Math.max(0,Math.round(100-err)); setScore(s);
-        const didHit=err<8; setHit(didHit);
+        const didHit=err<5; setHit(didHit);
         const DRAG = 0.03; 
         setLocked(true); setRunning(false); setShowJet(true);
         pushBoardRemote({ name, score:s, picks:[...picks], hit:didHit, ts:Date.now() });
